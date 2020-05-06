@@ -1,4 +1,4 @@
-// Copyright 2019 - Omar Sandoval
+// Copyright 2019-2020 - Omar Sandoval
 // SPDX-License-Identifier: GPL-3.0+
 
 #ifndef DRGN_PLATFORM_H
@@ -24,6 +24,16 @@ struct drgn_frame_register {
 	const char *pt_regs_name2;
 };
 
+struct pgtable_iterator {
+	struct drgn_program *prog;
+	uint64_t pgtable;
+	uint64_t virt_addr;
+};
+
+typedef struct drgn_error *
+(pgtable_iterator_next_fn)(struct pgtable_iterator *it, uint64_t *phys_page_ret,
+			   uint64_t *page_offset_ret, uint64_t *page_size_ret);
+
 struct drgn_architecture_info {
 	const char *name;
 	enum drgn_architecture arch;
@@ -42,6 +52,9 @@ struct drgn_architecture_info {
 	struct drgn_error *(*linux_kernel_live_direct_mapping_fallback)(struct drgn_program *,
 									uint64_t *,
 									uint64_t *);
+	size_t pgtable_iterator_size;
+	void (*pgtable_iterator_init)(struct pgtable_iterator *it);
+	pgtable_iterator_next_fn *pgtable_iterator_next;
 };
 
 static inline const struct drgn_register *
