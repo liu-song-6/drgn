@@ -12,6 +12,8 @@ from drgn import FaultError
 from drgn.helpers.linux.mm import (
     access_process_vm,
     access_remote_vm,
+    cmdline,
+    environ,
     page_to_pfn,
     pfn_to_page,
     pfn_to_virt,
@@ -91,6 +93,18 @@ class TestMm(LinuxHelperTestCase):
         self.assertEqual(access_process_vm(task, address, len(data)), data)
         self.assertEqual(access_remote_vm(task.mm, address, len(data)), data)
         self.assertRaises(FaultError, access_process_vm, task, 0, 8)
+
+    def test_cmdline(self):
+        with open("/proc/self/cmdline", "rb") as f:
+            proc_cmdline = f.read().split(b"\0")[:-1]
+        task = find_task(self.prog, os.getpid())
+        self.assertEqual(cmdline(task), proc_cmdline)
+
+    def test_environ(self):
+        with open("/proc/self/environ", "rb") as f:
+            proc_environ = f.read().split(b"\0")[:-1]
+        task = find_task(self.prog, os.getpid())
+        self.assertEqual(environ(task), proc_environ)
 
     @unittest.skipUnless(platform.machine() == "x86_64", "machine is not x86_64")
     def test_pgtable_l5_enabled(self):
