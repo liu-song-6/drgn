@@ -8,13 +8,17 @@ import struct
 import tempfile
 import unittest
 
+from drgn import FaultError
 from drgn.helpers.linux.mm import (
+    access_process_vm,
+    access_remote_vm,
     page_to_pfn,
     pfn_to_page,
     pfn_to_virt,
     pgtable_l5_enabled,
     virt_to_pfn,
 )
+from drgn.helpers.linux.pid import find_task
 from tests.helpers.linux import LinuxHelperTestCase, mlock
 
 
@@ -78,6 +82,15 @@ class TestMm(LinuxHelperTestCase):
                     self.prog.read(pfn * mmap.PAGESIZE, mmap.PAGESIZE, True),
                     map[i * mmap.PAGESIZE : (i + 1) * mmap.PAGESIZE],
                 )
+
+    def test_access_process_vm(self):
+        task = find_task(self.prog, os.getpid())
+        data = b"hello, world"
+        buf = ctypes.create_string_buffer(data)
+        address = ctypes.addressof(buf)
+        self.assertEqual(access_process_vm(task, address, len(data)), data)
+        self.assertEqual(access_remote_vm(task.mm, address, len(data)), data)
+        self.assertRaises(FaultError, access_process_vm, task, 0, 8)
 
     @unittest.skipUnless(platform.machine() == "x86_64", "machine is not x86_64")
     def test_pgtable_l5_enabled(self):
