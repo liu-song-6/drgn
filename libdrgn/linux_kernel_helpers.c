@@ -34,6 +34,12 @@ struct drgn_error *linux_helper_read_vm(struct drgn_program *prog,
 	if (!count)
 		return NULL;
 
+	if (prog->pgtable_it_in_use) {
+		return drgn_error_create_fault("recursive address translation; "
+					       "page table may be missing from core dump",
+					       virt_addr);
+	}
+
 	if (prog->pgtable_it) {
 		it = prog->pgtable_it;
 	} else {
@@ -45,6 +51,7 @@ struct drgn_error *linux_helper_read_vm(struct drgn_program *prog,
 	}
 	it->pgtable = pgtable;
 	it->virt_addr = virt_addr;
+	prog->pgtable_it_in_use = true;
 	prog->platform.arch->pgtable_iterator_init(it);
 	next = prog->platform.arch->pgtable_iterator_next;
 	do {
@@ -81,6 +88,7 @@ struct drgn_error *linux_helper_read_vm(struct drgn_program *prog,
 		err = drgn_program_read_memory(prog, buf, read_addr, read_size,
 					       true);
 	}
+	prog->pgtable_it_in_use = false;
 	return err;
 }
 
